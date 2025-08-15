@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AutoShipTech Widget</title>
+  <style>
+    :root { --ast-color: #6D28D9; }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; margin:0; padding:16px; }
+    .card { max-width: 640px; margin: 0 auto; border:1px solid #eee; border-radius:16px; padding:16px; box-shadow:0 10px 20px rgba(0,0,0,.06); }
+    .btn { background: var(--ast-color); color:#fff; border:none; padding:12px 16px; border-radius:12px; font-weight:600; cursor:pointer; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .row > * { flex:1 1 140px; }
+    label { display:block; font-size:14px; margin:8px 0 4px; }
+    input, select { width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; }
+    .price { font-size:28px; font-weight:800; margin:12px 0; }
+    .muted { color:#666; font-size:12px }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="text-align:center;margin-bottom:12px;">
+      <img id="logo" style="max-height:36px;display:none;" />
+    </div>
+    <h2 style="margin-top:0;">Instant Auto Shipping Quote</h2>
+    <div class="row">
+      <div>
+        <label>Pickup ZIP</label>
+        <input id="origin_zip" placeholder="e.g. 33101" />
+      </div>
+      <div>
+        <label>Delivery ZIP</label>
+        <input id="dest_zip" placeholder="e.g. 07097" />
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Year</label>
+        <input id="year" type="number" placeholder="2020" />
+      </div>
+      <div>
+        <label>Make</label>
+        <input id="make" placeholder="Toyota" />
+      </div>
+      <div>
+        <label>Model</label>
+        <input id="model" placeholder="Camry" />
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Trailer</label>
+        <select id="trailer">
+          <option value="open">Open</option>
+          <option value="enclosed">Enclosed</option>
+        </select>
+      </div>
+      <div>
+        <label>Operable</label>
+        <select id="operable">
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn" id="btn-quote" style="margin-top:14px;">Get Quote</button>
+    <div id="quote-area" style="display:none;">
+      <div class="price" id="price"></div>
+      <div class="muted" id="breakdown"></div>
+      <h3>Book Now</h3>
+      <div class="row">
+        <div><label>Name</label><input id="cust_name" /></div>
+        <div><label>Phone</label><input id="cust_phone" /></div>
+      </div>
+      <div class="row">
+        <div><label>Email</label><input id="cust_email" /></div>
+        <div><label>Pickup Date</label><input id="pickup_date" type="date" /></div>
+      </div>
+      <label>Notes</label><input id="notes" />
+      <button class="btn" id="btn-book" style="margin-top:12px;">Confirm Booking</button>
+      <div id="book-status" class="muted" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const pk = params.get('pk');
+    const color = params.get('color') || '#6D28D9';
+    const logo = params.get('logo');
+
+    document.documentElement.style.setProperty('--ast-color', color);
+    if (logo) { const img = document.getElementById('logo'); img.src = logo; img.style.display = 'inline-block'; }
+
+    const $ = id => document.getElementById(id);
+    $('btn-quote').onclick = async () => {
+      const payload = {
+        publishableKey: pk,
+        origin: { zip: $('origin_zip').value.trim() },
+        destination: { zip: $('dest_zip').value.trim() },
+        vehicle: { year: +$('year').value, make: $('make').value.trim(), model: $('model').value.trim() },
+        trailerType: $('trailer').value,
+        operable: $('operable').value === 'true'
+      };
+      const res = await fetch('https://api.autoshiptech.com/api/quote', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        $('quote-area').style.display = 'block';
+        $('price').textContent = `$${Number(data.price).toFixed(2)}`;
+        $('breakdown').textContent = data.breakdown || 'Base + modifiers applied.';
+        $('btn-book').dataset.quoteId = data.quoteId;
+        parent.postMessage({type:'AST:resize', height: document.body.scrollHeight }, '*');
+      } else alert(data.error || 'Quote failed');
+    };
+
+    $('btn-book').onclick = async () => {
+      const payload = {
+        quoteId: $('btn-book').dataset.quoteId,
+        customer: { name: $('cust_name').value, phone: $('cust_phone').value, email: $('cust_email').value },
+        pickupDate: $('pickup_date').value,
+        notes: $('notes').value
+      };
+      const res = await fetch('https://api.autoshiptech.com/api/book', {
+        method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      $('book-status').textContent = res.ok ? `Booking received. ID: ${data.bookingId}` : (data.error || 'Booking failed');
+    };
+  </script>
+</body>
+</html>
