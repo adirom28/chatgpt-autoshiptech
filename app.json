@@ -1,0 +1,20 @@
+{
+  "name": "AutoShipTech API",
+  "description": "AutoShipTech backend (Heroku one-click)",
+  "env": {
+    "PORT": { "value": "8080" },
+    "JWT_SECRET": { "required": true },
+    "CORS_ORIGINS": { "value": "https://autoshiptech.com,https://widget.autoshiptech.com,https://autoshiptech-api.herokuapp.com" },
+    "SEED_DEMO": { "value": "true" },
+    "APP_DOMAIN": { "value": "autoshiptech.com" }
+  },
+  "addons": [
+    { "plan": "heroku-postgresql:hobby-dev" }
+  ],
+  "buildpacks": [
+    { "url": "heroku/nodejs" }
+  ],
+  "scripts": {
+    "postdeploy": "node server/migrate.js"
+  }
+}
